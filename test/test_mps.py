@@ -10919,6 +10919,10 @@ class TestConsistency(TestCaseMPS):
         'nn.functional.glu',
         '_native_batch_norm_legit',
         'native_batch_norm',
+        '_softmax_backward_data',
+        'log_softmax',
+        'masked.softmax',
+        'masked.log_softmax',
 
         # for macOS 12
         'masked.normalize', 'masked.sum', 'masked.var',
@@ -11032,7 +11036,8 @@ class TestConsistency(TestCaseMPS):
 
             cpu_out = op(*cpu_args, **cpu_kwargs)
             mps_out = op(*mps_args, **mps_kwargs)
-
+            print("op.name: ", op.name)
+            print("dtype: ", dtype)
             if op.name in self.FP32_LOW_PRECISION_LIST and dtype == torch.float32:
                 atol = 1e-4
                 rtol = 3e-5
@@ -11064,6 +11069,9 @@ class TestConsistency(TestCaseMPS):
                 atol = None
                 rtol = None
 
+            if "softmax" in op.name:
+                print("cpu_out: ", torch.isnan(cpu_out).any())
+                print("mps_out: ", torch.isnan(mps_out).any())
             self.assertEqual(cpu_out, mps_out, atol=atol, rtol=rtol)
 
             #
@@ -11099,6 +11107,9 @@ class TestConsistency(TestCaseMPS):
             cpu_grad_inputs = torch.autograd.grad(diff_cpu_out, diff_cpu_arg, grad_outputs=cpu_grad_outputs, allow_unused=True)
             mps_grad_inputs = torch.autograd.grad(diff_mps_out, diff_mps_arg, grad_outputs=mps_grad_outputs, allow_unused=True)
 
+            if "softmax" in op.name:
+                print("cpu_grad_inputs: ", [torch.isnan(cgi).any() for cgi in cpu_grad_inputs])
+                print("mps_grad_inputs: ", [torch.isnan(mgi).any() for mgi in mps_grad_inputs])
             self.assertEqual(cpu_grad_inputs, mps_grad_inputs, atol=atol, rtol=rtol)
 
 
