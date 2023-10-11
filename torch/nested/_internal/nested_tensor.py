@@ -2,6 +2,7 @@ from typing import Tuple
 
 import torch
 from torch._C import DispatchKey, DispatchKeySet
+from torch.fx.experimental.symbolic_shapes import is_symbolic
 from torch.utils.weak import WeakTensorKeyDictionary
 from typing import *  # noqa: F403
 
@@ -107,6 +108,9 @@ class NestedTensor(torch.Tensor):
     def offsets(self):
         return self._offsets
 
+    def clone_offsets(self):
+        self._offsets = self._offsets.clone()
+
     def __repr__(self):
         # We should implement this in torch/_tensor_str.py instead
         grad_fn_str = (
@@ -114,7 +118,8 @@ class NestedTensor(torch.Tensor):
         )
         if self.grad_fn:
             grad_fn_str = f", grad_fn={self.grad_fn}"
-        return f"NestedTensor(size={self._size}, offsets={self.offsets}{grad_fn_str})"
+        return "NestedTensor"
+        # return f"NestedTensor(size={self._size}, offsets={self.offsets}{grad_fn_str})"
 
     def __tensor_flatten__(self):
         ctx = {
@@ -128,6 +133,11 @@ class NestedTensor(torch.Tensor):
         assert len(inner_tensors) == 2
         values = inner_tensors["_values"]
         offsets = inner_tensors["_offsets"]
+
+        if not any(is_symbolic(x.shape[0]) for x in (values, offsets)):
+            # If no inner tensors are symbolic we are going from fake to
+            # non-fake. Make sure we don't leak any SymInts.
+            meta["ragged_size"] = None
 
         return NestedTensor(
             values,
@@ -155,12 +165,15 @@ class ViewBufferFromNested(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x: NestedTensor):  # type: ignore[override]
         ctx.save_for_backward(x.offsets())
+        ctx.kwargs = {
+            "ragged_size": x._size[x._ragged_idx],
+        }
         return x.values()
 
     @staticmethod
     def backward(ctx, gO: torch.Tensor):  # type: ignore[override]
         (offsets,) = ctx.saved_tensors
-        return NestedTensor(gO, offsets=offsets)
+        return NestedTensor(gO, offsets=offsets, **ctx.kwargs)
 
 
 # Not actually a view!
