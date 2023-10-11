@@ -2328,24 +2328,28 @@ static const std::vector<OperatorGeneratorArgs> opGenArgs1{
         device_with_index,
         aliasAnalysisFromSchema()),
     OperatorGeneratorArgs(
-        TORCH_SELECTIVE_SCHEMA("aten::Generator(*, str? device=None, int? seed=None) -> Generator"),
+        TORCH_SELECTIVE_SCHEMA(
+            "aten::Generator(*, str? device=None, int? seed=None) -> Generator"),
         [](Stack& stack) {
           auto seed = pop(stack).toOptional<int64_t>();
           auto device_str = pop(stack);
-          auto device = c10::Device(device_str.isString() ? device_str.toStringRef() : "cpu");
+          auto device = c10::Device(
+              device_str.isString() ? device_str.toStringRef() : "cpu");
           push(stack, at::make_generator_for_device(device, seed));
         },
         aliasAnalysisFromSchema()),
     OperatorGeneratorArgs(
-        TORCH_SELECTIVE_SCHEMA("aten::initial_seed(Generator self) -> int"),
+        TORCH_SELECTIVE_SCHEMA(
+            "aten::initial_seed(Generator self) -> int"),
         [](Stack& stack) {
           auto generator = pop(stack);
           auto current_seed = generator.toGenerator().current_seed();
-          push(stack, (int64_t) current_seed);
+          push(stack, (int64_t)current_seed);
         },
         aliasAnalysisFromSchema()),
     OperatorGeneratorArgs(
-        TORCH_SELECTIVE_SCHEMA("aten::manual_seed(Generator self, int seed) -> Generator"),
+        TORCH_SELECTIVE_SCHEMA(
+            "aten::manual_seed(Generator self, int seed) -> Generator"),
         [](Stack& stack) {
           auto seed = pop(stack).toInt();
           auto generator = pop(stack);
@@ -2358,7 +2362,7 @@ static const std::vector<OperatorGeneratorArgs> opGenArgs1{
         [](Stack& stack) {
           auto generator = pop(stack);
           auto current_seed = generator.toGenerator().seed();
-          push(stack, (int64_t) current_seed);
+          push(stack, (int64_t)current_seed);
         },
         aliasAnalysisFromSchema()),
     OperatorGeneratorArgs(
